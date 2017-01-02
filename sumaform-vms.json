@@ -1,0 +1,5 @@
+// Add here machines that you want to query the status, or make operation with this machines.
+{ 
+  "suma3pg" : "DOWN",
+  "minsles12sp1" : "DOWN"
+}
