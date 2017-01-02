@@ -1,5 +1,9 @@
 #! /usr/bin/ruby
 require 'json'
+require 'libvirt'
+
+VIRT_URI="qemu:///system"
+conn = Libvirt::open(VIRT_URI)
 
 class Virt_Sumaform
   def initialize()
