@@ -2,11 +2,36 @@
 require 'json'
 require 'libvirt'
 
-VIRT_URI="qemu:///system"
-conn = Libvirt::open(VIRT_URI)
+class Virt_Ops
+  def initialize
+      # HACK remove this for remote support
+      # FIXME: put this in json file, for conf.
+      virt_uri = 'qemu:///system'
+      @@conn = Libvirt::open(virt_uri)
 
-class Virt_Sumaform
-  def initialize()
+      @@active_dom = Array.new
+      @@inactive_dom = Array.new
+      # get actives domains
+      @@conn.list_domains.each do |domid| 
+        dom = @@conn.lookup_domain_by_id(domid)
+          @@active_dom.push(dom.name)
+        end
+      # get inactive domains
+      @@conn.list_defined_domains.each do |domname|
+        @@inactive_dom.push(domname)
+      end
+  end
+  def active_dom
+    @@active_dom
+  end
+  def inactive_dom
+    @@inactive_dom
+  end
+
+end
+
+class Sumaform
+  def initialize
      # this are machine without prefix, only suma3pg etc
      @@vm_names = Hash.new
      # this contains prod names, with prefix
@@ -28,16 +53,19 @@ class Virt_Sumaform
   end
   ## check status of given hash of virt-machines
   def check_machines
-    # HACK: Remove this local-cmd with real libivrt bindings.
-    vms_active = `virsh list --name`.chomp.split
+    vops = Virt_Ops.new
+    # 1 ) get all active but existing machines.
+    vms_active = vops.active_dom
     vms_active.each do |vm|
        @@prod_vm_names.each do |key, value|
          @@prod_vm_names[vm] = "ON" if key == vm
        end
     end
+  puts @@prod_vm_names
   end
   # this function perform destruct. undefine and clean-up of disks.
   def destroy
+     #TODO
      puts "detrosy machines"
      puts "undefine domain"
      puts "remove disk of machines"
@@ -45,9 +73,9 @@ class Virt_Sumaform
 
 end
 
-ramrod = Virt_Sumaform.new
+ramrod = Sumaform.new
 ramrod.get_machines("sumaform-vms.json")
 ramrod.check_machines
+ramrod.destroy
 
-# TODO
 # 1) use virsh for ruby bindings, in order to get machines from distance. system is only an HACK
