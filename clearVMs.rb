@@ -5,18 +5,15 @@ require 'libvirt'
 class Virt_Ops
   def initialize
       # HACK remove this for remote support
-      # FIXME: put this in json file, for conf.
       virt_uri = 'qemu:///system'
       @@conn = Libvirt::open(virt_uri)
-
+      @pool_name = "default"
       @@active_dom = Array.new
       @@inactive_dom = Array.new
-      # get actives domains
       @@conn.list_domains.each do |domid| 
         dom = @@conn.lookup_domain_by_id(domid)
           @@active_dom.push(dom.name)
         end
-      # get inactive domains
       @@conn.list_defined_domains.each do |domname|
         @@inactive_dom.push(domname)
       end
@@ -26,6 +23,17 @@ class Virt_Ops
   end
   def inactive_dom
     @@inactive_dom
+  end
+  def destroy_disks(disks)
+    pool = @@conn.lookup_storage_pool_by_name(@pool_name)
+    disks.each do |vol_name| 
+      begin
+        vol = pool.lookup_volume_by_name(vol_name)
+        vol.delete
+      rescue Libvirt::RetrieveError
+	puts "volume: \"#{vol_name}\" not found skipping elimination of its disk"
+      end
+    end
   end
 
 end
@@ -61,21 +69,20 @@ class Sumaform
          @@prod_vm_names[vm] = "ON" if key == vm
        end
     end
-  puts @@prod_vm_names
   end
-  # this function perform destruct. undefine and clean-up of disks.
-  def destroy
-     #TODO
-     puts "detrosy machines"
-     puts "undefine domain"
-     puts "remove disk of machines"
+  def destroy_disks
+    vops = Virt_Ops.new
+    disks = Array.new
+    @@prod_vm_names.each do |key, value|
+         disks.push(key)
+    end
+    vops.destroy_disks(disks)
   end
-
 end
 
 ramrod = Sumaform.new
 ramrod.get_machines("sumaform-vms.json")
-ramrod.check_machines
-ramrod.destroy
+ramrod.destroy_disks
 
 # 1) use virsh for ruby bindings, in order to get machines from distance. system is only an HACK
+
